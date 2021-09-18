@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace ConsoleSort
 {
-    public class IndexEqualityComparer : IComparer<Range>
+    public class IndexEqualityComparer : IComparer<ItemHandler>
     {
 
         char[] _data;
@@ -14,7 +14,7 @@ namespace ConsoleSort
             _data = data;
         }
 
-        public int Compare(Range x, Range y)
+        public int Compare(ItemHandler x, ItemHandler y)
         {
             var dataSpan = new Span<char>(_data);
             var spanX = dataSpan.Slice(x.Start, x.End - x.Start);

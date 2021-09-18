@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ConsoleSort
 {
-    public struct Range
+    public struct ItemHandler
     {
         public int Start;
         public int End;
