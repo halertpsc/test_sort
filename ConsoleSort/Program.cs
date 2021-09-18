@@ -44,6 +44,7 @@ namespace ConsoleSort
                 processes.Add(new SortProcess(index.GetRange(previousPosition, count)));
                 previousPosition = previousPosition + count;
             }
+            index.Clear();
 
             Console.WriteLine($"start sorting {stopWatch.Elapsed}");
             var tasks = new List<Task>();
@@ -55,7 +56,7 @@ namespace ConsoleSort
             Task.WaitAll(tasks.ToArray());
             Console.WriteLine($"end sorting {stopWatch.Elapsed}");
 
-            index.Clear();
+  
             Console.WriteLine($"start meging {stopWatch.Elapsed}");
             var merger = new Merger(new IndexEqualityComparer(chunk));
             foreach(var process in processes)
