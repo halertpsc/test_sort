@@ -12,70 +12,142 @@ namespace ConsoleSort
             var stopWatch = System.Diagnostics.Stopwatch.StartNew();
             var sourceFileName = @$"c:\test\data1.txt";
             var destinationFileName = @"c:\test\result.txt";
+            var tempFileName = @"c:\test\temp";
             var maxThreadsFactor = 8;
             var chunkSize = 2_000_000_000;
-            var chunk = new char[chunkSize];
-            var index = new List<ItemHandler>();
-            var chunkPositions = new List<long>();
-            var nextChunkStartPositinInFIle = 0;
-            var processes = new List<SortProcess>(maxThreadsFactor);
-
+            var chunk = new char[chunkSize + 1];
+            var actualChunkSize = 0;
+            var endOfStringPositionForPreviousChunk = chunkSize;
+            var tempFileNumber = 0;
 
             //read chunk
             using (var file = new StreamReader(sourceFileName, System.Text.Encoding.UTF8))
             {
-                file.Read(chunk);
-            }
-            //build index
-            for(int i = 0; i< chunk.Length; i++)
-            {
-                if(chunk[i] == 0x0A)
+                while (true)
                 {
-                    var range = new ItemHandler { Start = index.Count == 0 ? 0 : index[index.Count - 1].End, End = i };
-                    index.Add(range);
+                    actualChunkSize = file.Read(chunk, chunkSize - endOfStringPositionForPreviousChunk, endOfStringPositionForPreviousChunk);
+                    if (actualChunkSize == 0)
+                    {
+                        break;
+                    }
+                    tempFileNumber++;
+                    //build index
+                    //each thread will have its own index to deal with
+                    var indexes = new List<ItemHandler>[maxThreadsFactor];
+                    var activeIndex = 0;
+                    ItemHandler? previousHandler = null;
+                    InitIndices(indexes, maxThreadsFactor);
+                  
+                    for (int i = 0; i < actualChunkSize; i++)
+                    {
+
+                        if (chunk[i] == 0x0A)
+                        {
+                            var handler = new ItemHandler { Start = previousHandler == null ? 0 : previousHandler.Value.End + 1, End = i };
+                            previousHandler = handler;
+                            indexes[activeIndex].Add(handler);
+                            if (activeIndex == maxThreadsFactor - 1)
+                            {
+                                activeIndex = 0;
+                            }
+                            else
+                            {
+                                activeIndex++;
+                            }
+                        }
+                    }
+
+                    if (previousHandler != null)
+                    {
+                        endOfStringPositionForPreviousChunk = previousHandler.Value.End + 1;
+                    }
+
+                    //var processes = new List<SortProcess>(maxThreadsFactor);
+                    //for (int i = 0; i < maxThreadsFactor; i++)
+                    //{
+                    //    processes.Add(new SortProcess(indexes[i]));
+
+                    //}
+
+
+                    Console.WriteLine($"start sorting {stopWatch.Elapsed}");
+                    var tasks = new List<Task>();
+                    foreach (var index in indexes)
+                    {
+                      //  tasks.Add(Task.Run(() => process.Sort(chunk)));
+                        tasks.Add(Task.Run(() =>
+                        {
+                            var comparer = new IndexComparer(chunk);
+                            index.Sort(comparer);
+                        }));
+                    }
+
+                    Task.WaitAll(tasks.ToArray());
+                    Console.WriteLine($"end sorting {stopWatch.Elapsed}");
+
+
+                    Console.WriteLine($"start meging {stopWatch.Elapsed}");
+
+                    var commonIndex = Merge(indexes, chunk);
+
+                    Console.WriteLine($"end merging {stopWatch.Elapsed}");
+
+
+                    Console.WriteLine($"start writing {stopWatch.Elapsed}");
+                    using (var targetFile = new StreamWriter($"{tempFileName}{tempFileNumber}"))
+                    {
+                        commonIndex.ForEach(idx => targetFile.Write(chunk, idx.Start, idx.End - idx.Start));
+                    }
+                    Console.WriteLine($"end writing {stopWatch.Elapsed}");
+
+                    var span = chunk.AsSpan().Slice(endOfStringPositionForPreviousChunk);
+                    span.CopyTo(chunk);
+
                 }
+
             }
-
-            var averageLength = index.Count / maxThreadsFactor;
-            var previousPosition = 0;
-            for(int i = 0; i<maxThreadsFactor;i++)
-            {
-                var count = previousPosition + averageLength < index.Count ? averageLength : index.Count - previousPosition;
-                processes.Add(new SortProcess(index.GetRange(previousPosition, count)));
-                previousPosition = previousPosition + count;
-            }
-            index.Clear();
-
-            Console.WriteLine($"start sorting {stopWatch.Elapsed}");
-            var tasks = new List<Task>();
-            foreach(var process in processes)
-            {
-                tasks.Add(Task.Run(() => process.Sort(chunk)));
-            }
-
-            Task.WaitAll(tasks.ToArray());
-            Console.WriteLine($"end sorting {stopWatch.Elapsed}");
-
-  
-            Console.WriteLine($"start meging {stopWatch.Elapsed}");
-            var merger = new Merger(new IndexEqualityComparer(chunk));
-            foreach(var process in processes)
-            {
-                index = merger.Merge(index, process.Index);
-            }
-            Console.WriteLine($"end merging {stopWatch.Elapsed}");
-
-
-            Console.WriteLine($"start writing {stopWatch.Elapsed}");
-            using (var file = new StreamWriter(destinationFileName))
-            {
-                index.ForEach(idx => file.Write(chunk, idx.Start, idx.End - idx.Start));
-            }
-            Console.WriteLine($"end writing {stopWatch.Elapsed}");
-
             stopWatch.Stop();
             Console.WriteLine(stopWatch.Elapsed);
             Console.ReadLine();
+        }
+
+        private static void InitIndices(List<ItemHandler>[] lists, int maxThread)
+        {
+            for (int i = 0; i < maxThread; i++)
+            {
+                lists[i] = new List<ItemHandler>();
+            }
+        }
+
+        private static List<ItemHandler> Merge(List<ItemHandler>[] lists, char[] data)
+        {
+            var merger = new Merger(new IndexComparer(data));
+
+            var mergeQueue = new Queue<List<ItemHandler>>();
+            foreach (var list in lists)
+            {
+                mergeQueue.Enqueue(list);
+            }
+
+            var mergeTasks = new List<Task<List<ItemHandler>>>();
+
+            while (mergeQueue.Count > 1)
+            {
+                while (mergeQueue.Count > 1)
+                {
+                    var first = mergeQueue.Dequeue();
+                    var second = mergeQueue.Dequeue();
+                    mergeTasks.Add(Task.Run(() => merger.Merge(first, second)));
+                }
+                Task.WaitAll(mergeTasks.ToArray());
+                foreach (var task in mergeTasks)
+                {
+                    mergeQueue.Enqueue(task.Result);
+                }
+                mergeTasks.Clear();
+            }
+
+            return mergeQueue.Dequeue();
         }
     }
 }

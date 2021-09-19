@@ -6,11 +6,11 @@ namespace ConsoleSort
 {
     public class Merger
     {
-        private readonly IndexEqualityComparer _indexEqualityComparer;
+        private readonly IndexComparer _indexComparer;
 
-        public Merger(IndexEqualityComparer comparer)
+        public Merger(IndexComparer comparer)
         {
-            _indexEqualityComparer = comparer;
+            _indexComparer = comparer;
         }
 
         public List<ItemHandler> Merge(List<ItemHandler> first, List<ItemHandler> second)
@@ -20,7 +20,7 @@ namespace ConsoleSort
             var secondPosition = 0;
             while (firstPosition < first.Count && secondPosition < second.Count)
             {
-                if (_indexEqualityComparer.Compare(first[firstPosition], second[secondPosition]) < 0)
+                if (_indexComparer.Compare(first[firstPosition], second[secondPosition]) < 0)
                 {
                     result.Add(first[firstPosition]);
                     firstPosition++;

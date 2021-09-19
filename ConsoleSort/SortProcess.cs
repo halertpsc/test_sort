@@ -4,20 +4,20 @@ using System.Text;
 
 namespace ConsoleSort
 {
-    public class SortProcess
-    {
-        public SortProcess(List<ItemHandler> index)
-        {
-            Index = index ?? throw new ArgumentNullException(nameof(index));
-        }
+    //public class SortProcess
+    //{
+    //    public SortProcess(List<ItemHandler> index)
+    //    {
+    //        Index = index ?? throw new ArgumentNullException(nameof(index));
+    //    }
 
 
-        public List<ItemHandler> Index { get; }
+    //    public List<ItemHandler> Index { get; }
 
-        public void Sort(char[] data)
-        {
-            var comparer = new IndexEqualityComparer(data);
-            Index.Sort(comparer);
-        }
-    }
+    //    public void Sort(char[] data)
+    //    {
+    //        var comparer = new IndexComparer(data);
+    //        Index.Sort(comparer);
+    //    }
+    //}
 }
