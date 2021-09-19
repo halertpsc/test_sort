@@ -19,6 +19,7 @@ namespace ConsoleSort
             var actualChunkSize = 0;
             var endOfStringPositionForPreviousChunk = chunkSize;
             var tempFileNumber = 0;
+            var tempFilesList = new List<string>();
 
             //read chunk
             using (var file = new StreamReader(sourceFileName, System.Text.Encoding.UTF8))
@@ -62,22 +63,14 @@ namespace ConsoleSort
                         endOfStringPositionForPreviousChunk = previousHandler.Value.End + 1;
                     }
 
-                    //var processes = new List<SortProcess>(maxThreadsFactor);
-                    //for (int i = 0; i < maxThreadsFactor; i++)
-                    //{
-                    //    processes.Add(new SortProcess(indexes[i]));
-
-                    //}
-
-
+              
                     Console.WriteLine($"start sorting {stopWatch.Elapsed}");
                     var tasks = new List<Task>();
                     foreach (var index in indexes)
                     {
-                      //  tasks.Add(Task.Run(() => process.Sort(chunk)));
                         tasks.Add(Task.Run(() =>
                         {
-                            var comparer = new IndexComparer(chunk);
+                            var comparer = new HandlersComparer(chunk);
                             index.Sort(comparer);
                         }));
                     }
@@ -98,13 +91,14 @@ namespace ConsoleSort
                     {
                         commonIndex.ForEach(idx => targetFile.Write(chunk, idx.Start, idx.End - idx.Start));
                     }
+                    tempFilesList.Add($"{tempFileName}{tempFileNumber}");
                     Console.WriteLine($"end writing {stopWatch.Elapsed}");
 
                     var span = chunk.AsSpan().Slice(endOfStringPositionForPreviousChunk);
                     span.CopyTo(chunk);
 
                 }
-
+                chunk = null;
             }
             stopWatch.Stop();
             Console.WriteLine(stopWatch.Elapsed);
@@ -121,7 +115,38 @@ namespace ConsoleSort
 
         private static List<ItemHandler> Merge(List<ItemHandler>[] lists, char[] data)
         {
-            var merger = new Merger(new IndexComparer(data));
+            var merger = new HandlerMerger(new HandlersComparer(data));
+
+            var mergeQueue = new Queue<List<ItemHandler>>();
+            foreach (var list in lists)
+            {
+                mergeQueue.Enqueue(list);
+            }
+
+            var mergeTasks = new List<Task<List<ItemHandler>>>();
+
+            while (mergeQueue.Count > 1)
+            {
+                while (mergeQueue.Count > 1)
+                {
+                    var first = mergeQueue.Dequeue();
+                    var second = mergeQueue.Dequeue();
+                    mergeTasks.Add(Task.Run(() => merger.Merge(first, second)));
+                }
+                Task.WaitAll(mergeTasks.ToArray());
+                foreach (var task in mergeTasks)
+                {
+                    mergeQueue.Enqueue(task.Result);
+                }
+                mergeTasks.Clear();
+            }
+
+            return mergeQueue.Dequeue();
+        }
+
+        private static List<ItemHandler> CommonMerge(List<ItemHandler>[] lists, char[] data)
+        {
+            var merger = new HandlerMerger(new HandlersComparer(data));
 
             var mergeQueue = new Queue<List<ItemHandler>>();
             foreach (var list in lists)

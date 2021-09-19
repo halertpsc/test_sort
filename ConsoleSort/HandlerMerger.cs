@@ -4,11 +4,11 @@ using System.Text;
 
 namespace ConsoleSort
 {
-    public class Merger
+    public class HandlerMerger
     {
-        private readonly IndexComparer _indexComparer;
+        private readonly HandlersComparer _indexComparer;
 
-        public Merger(IndexComparer comparer)
+        public HandlerMerger(HandlersComparer comparer)
         {
             _indexComparer = comparer;
         }
