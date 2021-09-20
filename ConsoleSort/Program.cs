@@ -10,7 +10,7 @@ namespace ConsoleSort
       
         const int  maxThreadsFactor = 8;
         const int chunkSize = 2_000_000_000;
-        const int  parallelMergeTasks = 5;
+        const int  parallelMergeTasks = 8;
 
         static void Main(string[] args)
         {
@@ -146,7 +146,7 @@ namespace ConsoleSort
             while (mergeQueue.Count > 1)
             {
                 
-                while (mergeQueue.Count > 1 && mergeTasks.Count < parallelMergeTasks)
+                while (mergeQueue.Count > 1 && mergeTasks.Count <= parallelMergeTasks)
                 {
                     var first = mergeQueue.Dequeue();
                     var second = mergeQueue.Dequeue();
