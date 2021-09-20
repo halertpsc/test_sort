@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ConsoleSort
 {
-    public class HandlerMerger
+    public class HandlerMerger : IMerger<List<ItemHandler>>
     {
         private readonly HandlersComparer _indexComparer;
 

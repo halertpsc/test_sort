@@ -5,11 +5,12 @@ using System.Text;
 
 namespace ConsoleSort
 {
-    public abstract class FileMerger : BaseSpanComparer, IMerger<string>
+    public class FileMerger : BaseSpanComparer, IMerger<string>
     {
         private readonly string _dirName;
+        private const int bufferSize = 50; //1_000_000_000
 
-        protected FileMerger(string dirName)
+        public FileMerger(string dirName)
         {
             _dirName = dirName ?? throw new ArgumentNullException(nameof(dirName));
         }
@@ -18,13 +19,13 @@ namespace ConsoleSort
         {
             var outputFileNmae = @$"{_dirName}/{Guid.NewGuid().ToString("N")}";
 
-            using (var firstFile = new BufferedFile(first))
-            using (var secondFile = new BufferedFile(second))
+            using (var firstFile = new BufferedFile(first, bufferSize))
+            using (var secondFile = new BufferedFile(second, bufferSize))
             using (var outputFile = new StreamWriter(outputFileNmae))
             {
                 var firstSapn = firstFile.NextString(out var firsFileEnded);
                 var secondSapn = secondFile.NextString(out var secondFileEnded);
-                while (firsFileEnded || secondFileEnded)
+                while(!firsFileEnded && !secondFileEnded)
                 {
                     if (SpanCompare(firstSapn, secondSapn) < 0)
                     {
@@ -37,26 +38,25 @@ namespace ConsoleSort
                         secondSapn = secondFile.NextString(out secondFileEnded);
                     }
                 }
-                if(firsFileEnded)
+                if (firsFileEnded)
                 {
-                    outputFile.Write(secondFile.GetRestFromBuffer());
-                    var reader = secondFile.GetStreamReader();
-                    if(!reader.EndOfStream)
-                    {
-                        reader.BaseStream.CopyTo(outputFile.BaseStream);
-                    }
+                    outputFile.Write(secondSapn);
+                    outputFile.Write(secondFile.GetFromBuffer());
+                    secondFile.GetBaseStream().CopyTo(outputFile.BaseStream);
+
                 }
                 else
                 {
-                    outputFile.Write(firstFile.GetRestFromBuffer());
-                    var reader = firstFile.GetStreamReader();
-                    if(!reader.EndOfStream)
-                    {
-                        reader.BaseStream.CopyTo(outputFile.BaseStream);
-                    }
+                    outputFile.Write(firstSapn);
+                    outputFile.Write(firstFile.GetFromBuffer());
+                    firstFile.GetBaseStream().CopyTo(outputFile.BaseStream);
+
                 }
+                outputFile.Flush();
                 outputFile.Close();
             }
+            File.Delete(first);
+            File.Delete(second);
             return outputFileNmae;
         }
     }

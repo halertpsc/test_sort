@@ -7,47 +7,104 @@ namespace ConsoleSort
 {
     public class BufferedFile : IDisposable
     {
-        const int bufferSize = 1_000_000_000;
+        private readonly int _bufferSize;;;
 
-        public BufferedFile(string fileName)
+        private char[] _buffer;
+
+        private StreamReader _file;
+
+        private int _currentStringBegin = 0;
+        private int _currentStringEnd = -1;
+        private int _currentStringSearchPosition = 0;
+        private int _dataEndPosition = 0;
+
+        bool stringProviderInvalid = false;
+        bool partialBufferReturned = false;
+
+        public BufferedFile(string fileName, int size)
         {
             _file = new StreamReader(fileName);
+            _bufferSize = size;
+            _buffer = new char[_bufferSize];
         }
-     
+
+   
         public Span<char> NextString(out bool endOfFile)
         {
-            var startIndex = _bufferPosition;
-            var conutFromStart = 0;
-             endOfFile = false;
-            while (_buffer[startIndex + conutFromStart] != 0x0A)
+            if(stringProviderInvalid)
             {
-                if (startIndex + conutFromStart == _actualDataSize)
-                {
-                    if (_actualDataSize == bufferSize)
-                    {
-                        _buffer.AsSpan().Slice(startIndex).CopyTo(_buffer);
-                        _actualDataSize = _file.Read(_buffer, conutFromStart, bufferSize - conutFromStart) + conutFromStart;
-                        startIndex = 0;
-                    }
-                    else
-                    {
-                        endOfFile = true;
-                    }
-                }
-                conutFromStart++;
+                throw new InvalidOperationException();
             }
-            _bufferPosition = conutFromStart + 1;
-            return _buffer.AsSpan().Slice(startIndex, conutFromStart);
+            endOfFile = false;
+            if (_currentStringEnd == _dataEndPosition && _file.EndOfStream)
+            {
+                endOfFile = true;
+                return _buffer.AsSpan().Slice(0, 0);
+            }
+            _currentStringBegin = _currentStringEnd + 1;
+            _currentStringSearchPosition = _currentStringBegin;
+
+            if (_dataEndPosition == 0 || _currentStringSearchPosition == _bufferSize)
+            {
+                _dataEndPosition = _file.Read(_buffer) - 1;
+                _currentStringBegin = 0;
+                _currentStringSearchPosition = 0;
+                if(_dataEndPosition == -1)
+                {
+                    endOfFile = false;
+                    return _buffer.AsSpan().Slice(0, 0);
+                }
+            }
+
+            while (_buffer[_currentStringSearchPosition] != 0x0A)
+            {
+               
+                if (_currentStringSearchPosition == _bufferSize -1)
+                {
+                    _buffer.AsSpan().Slice(_currentStringBegin).CopyTo(_buffer);
+                    _dataEndPosition = _file.Read(_buffer, _bufferSize - _currentStringBegin, _currentStringBegin) + _bufferSize - _currentStringBegin - 1;
+                    _currentStringSearchPosition = _currentStringSearchPosition - _currentStringBegin;
+                    _currentStringBegin = 0;
+                }
+               
+                _currentStringSearchPosition++;
+            }
+             _currentStringEnd = _currentStringSearchPosition;            
+            return _buffer.AsSpan().Slice(_currentStringBegin, _currentStringEnd - _currentStringBegin + 1);
         }
 
-        public Span<char> GetRestFromBuffer()
+       
+
+        public Span<char> NextBuffer(out bool endOfFile)
         {
-            return _buffer.AsSpan().Slice(_bufferPosition, _actualDataSize);
+            endOfFile = false;
+            if (!partialBufferReturned)
+            {
+                return GetFromBuffer();
+            }
+            var readed = _file.Read(_buffer);
+            if(readed == 0 )
+            {
+                endOfFile = true;
+                return _buffer.AsSpan().Slice(0, 0);
+            }
+            return _buffer.AsSpan().Slice(0, readed);
         }
 
-        public StreamReader GetStreamReader()
+        public Span<char> GetFromBuffer()
         {
-            return _file;
+            stringProviderInvalid = true;
+            partialBufferReturned = true;
+            if(_dataEndPosition - _currentStringEnd == 0)
+            {
+                return _buffer.AsSpan().Slice(0, 0);
+            }
+            return _buffer.AsSpan().Slice(_currentStringEnd + 1, _dataEndPosition - _currentStringEnd);
+        }
+
+        public Stream GetBaseStream()
+        {
+            return _file.BaseStream;
         }
 
         public void Dispose()
@@ -56,12 +113,6 @@ namespace ConsoleSort
             _file.Dispose();
         }
 
-        private char[] _buffer = new char[bufferSize];
-
-        private StreamReader _file;
-
-        private int _bufferPosition = bufferSize;
-
-        private int _actualDataSize = 0;
+     
     }
 }

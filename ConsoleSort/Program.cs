@@ -10,16 +10,20 @@ namespace ConsoleSort
         static void Main(string[] args)
         {
             var stopWatch = System.Diagnostics.Stopwatch.StartNew();
-            var sourceFileName = @$"c:\test\data1.txt";
-            var destinationFileName = @"c:\test\result.txt";
-            var tempFileName = @"c:\test\temp";
+           
+            var tempFileDir = @$"c:\test";
+            var sourceFileName = @$"{tempFileDir}\banana.txt";
+            var destinationFileName = $@"{tempFileDir}\result.txt";
+            var tempFileName = @$"{tempFileDir}\temp";
             var maxThreadsFactor = 8;
-            var chunkSize = 2_000_000_000;
+            var chunkSize = 55;// 2_000_000_000;
             var chunk = new char[chunkSize + 1];
             var actualChunkSize = 0;
             var endOfStringPositionForPreviousChunk = chunkSize;
             var tempFileNumber = 0;
             var tempFilesList = new List<string>();
+
+            Directory.CreateDirectory(tempFileDir);
 
             //read chunk
             using (var file = new StreamReader(sourceFileName, System.Text.Encoding.UTF8))
@@ -81,7 +85,8 @@ namespace ConsoleSort
 
                     Console.WriteLine($"start meging {stopWatch.Elapsed}");
 
-                    var commonIndex = Merge(indexes, chunk);
+                    var merger = new HandlerMerger(new HandlersComparer(chunk));
+                    var commonIndex = Merge(indexes, merger);
 
                     Console.WriteLine($"end merging {stopWatch.Elapsed}");
 
@@ -89,7 +94,9 @@ namespace ConsoleSort
                     Console.WriteLine($"start writing {stopWatch.Elapsed}");
                     using (var targetFile = new StreamWriter($"{tempFileName}{tempFileNumber}"))
                     {
-                        commonIndex.ForEach(idx => targetFile.Write(chunk, idx.Start, idx.End - idx.Start));
+                        commonIndex.ForEach(idx => targetFile.Write(chunk, idx.Start, idx.End - idx.Start +1));
+                        targetFile.Flush();
+                        targetFile.Close();
                     }
                     tempFilesList.Add($"{tempFileName}{tempFileNumber}");
                     Console.WriteLine($"end writing {stopWatch.Elapsed}");
@@ -100,6 +107,11 @@ namespace ConsoleSort
                 }
                 chunk = null;
             }
+
+            Console.WriteLine($"start file merge {stopWatch.Elapsed}");
+            var fileMerger = new FileMerger(tempFileDir);
+            Merge(tempFilesList, fileMerger);
+            Console.WriteLine($"end file merge {stopWatch.Elapsed}");
             stopWatch.Stop();
             Console.WriteLine(stopWatch.Elapsed);
             Console.ReadLine();
@@ -113,48 +125,17 @@ namespace ConsoleSort
             }
         }
 
-        private static List<ItemHandler> Merge(List<ItemHandler>[] lists, char[] data)
+     
+        private static T Merge<T>(IEnumerable<T> lists, IMerger<T> merger)
         {
-            var merger = new HandlerMerger(new HandlersComparer(data));
-
-            var mergeQueue = new Queue<List<ItemHandler>>();
+            
+            var mergeQueue = new Queue<T>();
             foreach (var list in lists)
             {
                 mergeQueue.Enqueue(list);
             }
 
-            var mergeTasks = new List<Task<List<ItemHandler>>>();
-
-            while (mergeQueue.Count > 1)
-            {
-                while (mergeQueue.Count > 1)
-                {
-                    var first = mergeQueue.Dequeue();
-                    var second = mergeQueue.Dequeue();
-                    mergeTasks.Add(Task.Run(() => merger.Merge(first, second)));
-                }
-                Task.WaitAll(mergeTasks.ToArray());
-                foreach (var task in mergeTasks)
-                {
-                    mergeQueue.Enqueue(task.Result);
-                }
-                mergeTasks.Clear();
-            }
-
-            return mergeQueue.Dequeue();
-        }
-
-        private static List<ItemHandler> CommonMerge(List<ItemHandler>[] lists, char[] data)
-        {
-            var merger = new HandlerMerger(new HandlersComparer(data));
-
-            var mergeQueue = new Queue<List<ItemHandler>>();
-            foreach (var list in lists)
-            {
-                mergeQueue.Enqueue(list);
-            }
-
-            var mergeTasks = new List<Task<List<ItemHandler>>>();
+            var mergeTasks = new List<Task<T>>();
 
             while (mergeQueue.Count > 1)
             {
