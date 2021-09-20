@@ -17,7 +17,7 @@ namespace ConsoleSort
             var tempFileName = @$"{tempFileDir}\temp";
             var maxThreadsFactor = 8;
             var chunkSize = 55;// 2_000_000_000;
-            var chunk = new char[chunkSize + 1];
+            var chunk = new char[chunkSize];
             var actualChunkSize = 0;
             var endOfStringPositionForPreviousChunk = chunkSize;
             var tempFileNumber = 0;
@@ -30,7 +30,7 @@ namespace ConsoleSort
             {
                 while (true)
                 {
-                    actualChunkSize = file.Read(chunk, chunkSize - endOfStringPositionForPreviousChunk, endOfStringPositionForPreviousChunk);
+                    actualChunkSize = file.Read(chunk, chunkSize - endOfStringPositionForPreviousChunk, endOfStringPositionForPreviousChunk) + chunkSize - endOfStringPositionForPreviousChunk ;
                     if (actualChunkSize == 0)
                     {
                         break;

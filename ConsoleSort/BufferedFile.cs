@@ -7,7 +7,7 @@ namespace ConsoleSort
 {
     public class BufferedFile : IDisposable
     {
-        private readonly int _bufferSize;;;
+        private readonly int _bufferSize;
 
         private char[] _buffer;
 
