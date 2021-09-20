@@ -8,7 +8,7 @@ namespace ConsoleSort
     public class FileMerger : BaseSpanComparer, IMerger<string>
     {
         private readonly string _dirName;
-        private const int bufferSize = 1_000_000_000
+        private const int bufferSize = 200_000_000;
 
         public FileMerger(string dirName)
         {

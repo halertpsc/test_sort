@@ -7,21 +7,26 @@ namespace ConsoleSort
 {
     class Program
     {
+      
+        const int  maxThreadsFactor = 8;
+        const int chunkSize = 2_000_000_000;
+        const int  parallelMergeTasks = 5;
+
         static void Main(string[] args)
         {
-            var stopWatch = System.Diagnostics.Stopwatch.StartNew();
-           
             var tempFileDir = @$"c:\test";
             var sourceFileName = @$"{tempFileDir}\data1.txt";
             var destinationFileName = $@"{tempFileDir}\result.txt";
             var tempFileName = @$"{tempFileDir}\temp";
-            var maxThreadsFactor = 8;
-            var chunkSize = 2_000_000_000;
+
+
+            var stopWatch = System.Diagnostics.Stopwatch.StartNew();
             var chunk = new char[chunkSize];
             var actualChunkSize = 0;
             var endOfStringPositionForPreviousChunk = chunkSize;
             var tempFileNumber = 0;
             var tempFilesList = new List<string>();
+           
 
             Directory.CreateDirectory(tempFileDir);
 
@@ -30,11 +35,12 @@ namespace ConsoleSort
             {
                 while (true)
                 {
-                    actualChunkSize = file.Read(chunk, chunkSize - endOfStringPositionForPreviousChunk, endOfStringPositionForPreviousChunk) + chunkSize - endOfStringPositionForPreviousChunk ;
-                    if (actualChunkSize == 0)
+                    var readed = file.Read(chunk, chunkSize - endOfStringPositionForPreviousChunk, endOfStringPositionForPreviousChunk) ;
+                    if (readed == 0)
                     {
                         break;
                     }
+                    actualChunkSize = readed + chunkSize - endOfStringPositionForPreviousChunk;
                     tempFileNumber++;
                     //build index
                     //each thread will have its own index to deal with
@@ -139,7 +145,8 @@ namespace ConsoleSort
 
             while (mergeQueue.Count > 1)
             {
-                while (mergeQueue.Count > 1)
+                
+                while (mergeQueue.Count > 1 && mergeTasks.Count < parallelMergeTasks)
                 {
                     var first = mergeQueue.Dequeue();
                     var second = mergeQueue.Dequeue();
