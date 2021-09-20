@@ -8,7 +8,7 @@ namespace ConsoleSort
     public class FileMerger : BaseSpanComparer, IMerger<string>
     {
         private readonly string _dirName;
-        private const int bufferSize = 50; //1_000_000_000
+        private const int bufferSize = 1_000_000_000
 
         public FileMerger(string dirName)
         {
@@ -17,7 +17,7 @@ namespace ConsoleSort
 
         public string Merge(string first, string second)
         {
-            var outputFileNmae = @$"{_dirName}/{Guid.NewGuid().ToString("N")}";
+            var outputFileNmae = @$"{_dirName}/{Guid.NewGuid().ToString("N")}.txt";
 
             using (var firstFile = new BufferedFile(first, bufferSize))
             using (var secondFile = new BufferedFile(second, bufferSize))

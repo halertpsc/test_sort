@@ -12,11 +12,11 @@ namespace ConsoleSort
             var stopWatch = System.Diagnostics.Stopwatch.StartNew();
            
             var tempFileDir = @$"c:\test";
-            var sourceFileName = @$"{tempFileDir}\banana.txt";
+            var sourceFileName = @$"{tempFileDir}\data1.txt";
             var destinationFileName = $@"{tempFileDir}\result.txt";
             var tempFileName = @$"{tempFileDir}\temp";
             var maxThreadsFactor = 8;
-            var chunkSize = 55;// 2_000_000_000;
+            var chunkSize = 2_000_000_000;
             var chunk = new char[chunkSize];
             var actualChunkSize = 0;
             var endOfStringPositionForPreviousChunk = chunkSize;
